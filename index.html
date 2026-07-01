@@ -56,6 +56,16 @@
                 <button id="open-voting-btn" onclick="openVoting()" disabled class="w-full py-4 rounded-2xl font-black text-2xl transition-all bg-gray-300 text-gray-500 cursor-not-allowed">
                     발표자를 2명 이상 등록해주세요
                 </button>
+
+                <!-- 학생 공유용 링크 영역 추가 -->
+                <div class="mt-6 p-5 bg-green-50 rounded-2xl border-2 border-green-200">
+                    <h3 class="text-md font-bold text-green-800 mb-2">📱 학생들 스마트폰으로 각자 투표하게 하려면?</h3>
+                    <p class="text-sm text-green-700 mb-3">위에서 발표자와 URL을 모두 입력한 후 아래 버튼을 누르세요.</p>
+                    <button type="button" onclick="copyShareLink()" class="w-full py-3 bg-green-500 text-white font-bold rounded-xl hover:bg-green-600 transition shadow-md hover:shadow-lg">
+                        🔗 학생용 접속 링크 복사하기
+                    </button>
+                    <p id="copy-msg" class="text-sm font-bold text-green-700 text-center mt-3 hidden"></p>
+                </div>
             </div>
         </div>
 
@@ -82,7 +92,7 @@
                     </button>
                 </form>
             </div>
-            <div class="text-center mt-6">
+            <div class="text-center mt-6" id="teacher-only-section">
                 <button onclick="forceEndVoting()" class="text-sm text-gray-400 font-bold underline hover:text-red-500">
                     (선생님 전용) 투표 종료 및 결과 보기
                 </button>
@@ -140,6 +150,33 @@
         let votedStudents = []; // 투표를 완료한 학번 저장 (1인 1표 확인용)
         let currentStudentId = null;
         let currentStudentName = null;
+        let isStudentMode = false; // 추가: 학생용 링크로 접속했는지 여부
+
+        // 페이지 로드 시 학생용 링크 파라미터 확인
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const gasParam = urlParams.get('gas');
+            const cParam = urlParams.get('c');
+
+            // URL에 'c'(후보목록)가 포함되어 있다면 학생 스마트폰 접속으로 판단
+            if (cParam) {
+                isStudentMode = true;
+                const names = cParam.split(',');
+                // URL에서 후보 이름들을 읽어와서 세팅
+                candidates = names.map((name, index) => ({ id: index.toString(), name: name, votes: 0 }));
+                
+                if (gasParam) {
+                    document.getElementById('gasUrl').value = gasParam;
+                }
+
+                // 선생님 등록 화면 건너뛰고 바로 학생 로그인 화면으로 이동
+                switchStage('login-stage');
+                
+                // 학생 화면에서는 선생님 전용 결과보기 버튼 숨기기
+                const teacherBtn = document.getElementById('teacher-only-section');
+                if(teacherBtn) teacherBtn.classList.add('hidden');
+            }
+        };
 
         // 화면 전환 함수
         function switchStage(stageId) {
@@ -197,6 +234,36 @@
             if(candidates.length >= 2) {
                 switchStage('login-stage');
             }
+        }
+
+        // 학생용 공유 링크 생성 및 복사 함수
+        function copyShareLink() {
+            if (candidates.length < 2) {
+                alert("발표자를 2명 이상 먼저 추가해주세요!");
+                return;
+            }
+            const gasUrl = document.getElementById('gasUrl').value.trim();
+            if (!gasUrl) {
+                alert("구글 앱스크립트 URL을 입력해야 결과가 저장됩니다!");
+                return;
+            }
+            
+            const names = candidates.map(c => c.name).join(',');
+            
+            // 현재 주소 뒤에 후보자와 앱스크립트 주소를 암호처럼 붙여서 특수 링크 생성
+            const shareUrl = window.location.origin + window.location.pathname + `?gas=${encodeURIComponent(gasUrl)}&c=${encodeURIComponent(names)}`;
+            
+            // 링크 클립보드에 복사
+            const tempInput = document.createElement('input');
+            tempInput.value = shareUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            
+            const msg = document.getElementById('copy-msg');
+            msg.innerText = "✅ 링크 복사 완료! 학생들 카카오톡 단톡방이나 e학습터에 붙여넣기 해주세요.";
+            msg.classList.remove('hidden');
         }
 
         // [2] 로그인 검증 (학번, 이름, 중복투표 체크)
@@ -263,14 +330,48 @@
                 const confetti = document.getElementById('confetti-overlay');
                 confetti.classList.remove('hidden');
                 
-                // 2.5초 뒤 다음 사람을 위해 로그인 화면으로 되돌아가기
-                setTimeout(() => {
-                    confetti.classList.add('hidden');
-                    document.getElementById('studentId').value = '';
-                    document.getElementById('studentName').value = '';
-                    switchStage('login-stage');
-                }, 2500);
+                if (isStudentMode) {
+                    // [학생 각자 스마트폰 모드] 단일 투표 내역을 즉시 구글 시트로 전송
+                    submitSingleVoteToGas(currentStudentId, currentStudentName, candidate.name);
+                    
+                    // 2.5초 뒤 완전히 투표 종료 화면으로 변경 (재투표 방지)
+                    setTimeout(() => {
+                        confetti.classList.add('hidden');
+                        document.getElementById('voting-stage').innerHTML = `
+                            <div class="bg-white p-10 rounded-3xl shadow-xl text-center border-4 border-green-200 mt-20">
+                                <h2 class="text-5xl font-black text-green-600 mb-6">투표 완료!</h2>
+                                <p class="text-xl font-bold text-gray-700 mb-4">${candidate.name} 학생에게 소중한 한 표가 전송되었습니다.</p>
+                                <p class="text-md text-gray-500">선생님의 안내를 기다려주세요 😊</p>
+                            </div>
+                        `;
+                    }, 2500);
+                } else {
+                    // [선생님 PC 1대 공용 모드] 다음 사람을 위해 로그인 화면으로 되돌아가기
+                    setTimeout(() => {
+                        confetti.classList.add('hidden');
+                        document.getElementById('studentId').value = '';
+                        document.getElementById('studentName').value = '';
+                        switchStage('login-stage');
+                    }, 2500);
+                }
             }
+        }
+
+        // 학생 스마트폰에서 투표할 때마다 구글 시트에 바로 기록 쏘기
+        function submitSingleVoteToGas(voterId, voterName, votedCandidateName) {
+            const gasUrl = document.getElementById('gasUrl').value.trim();
+            if(!gasUrl) return;
+
+            fetch(gasUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({
+                    eventName: '1학년 6반 독서 에세이 대표 선발',
+                    timestamp: new Date().toISOString(),
+                    // 단 1표만 서버로 전송
+                    results: [{ name: votedCandidateName, votes: 1 }] 
+                })
+            }).catch(e => console.log('전송완료'));
         }
 
         // [4] 결과 화면 렌더링
