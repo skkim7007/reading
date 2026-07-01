@@ -340,8 +340,43 @@
 
         function forceEndVoting() {
             showCustomModal('🚨', '투표 종료', '투표를 모두 마치고 결과를 확인하시겠습니까?', '결과 보기', 'bg-red-500 hover:bg-red-600', () => {
-                renderResults();
+                fetchResultsFromGasAndRender();
             });
+        }
+
+        // 구글 시트에서 실시간 결과를 가져와서 화면에 보여주는 함수 (새로 추가됨)
+        async function fetchResultsFromGasAndRender() {
+            const gasUrl = document.getElementById('gasUrl').value.trim();
+            
+            // 앱스크립트 URL이 없으면 그냥 로컬(현재 PC) 결과 보여주기
+            if (!gasUrl) {
+                renderResults();
+                return;
+            }
+
+            switchStage('results-stage');
+            document.getElementById('results-list').innerHTML = '<div class="text-center text-xl font-bold text-blue-500 py-10 animate-pulse">⏳ 구글 시트에서 학생들의 투표 결과를 집계 중입니다... 잠시만 기다려주세요.</div>';
+            
+            // 결과 화면의 '시트 저장' 버튼 숨기기 (이미 시트에 있으므로)
+            const submitBtnDiv = document.getElementById('submit-gas-btn').parentElement;
+            if(submitBtnDiv) submitBtnDiv.classList.add('hidden');
+
+            try {
+                // 앱스크립트 웹앱 주소로 GET 요청을 보내 시트 데이터 읽어오기
+                const response = await fetch(gasUrl);
+                const aggregatedData = await response.json(); 
+
+                // 가져온 투표수를 현재 후보 목록에 덮어쓰기
+                candidates.forEach(c => {
+                    c.votes = aggregatedData[c.name] || 0;
+                });
+
+                // 업데이트된 데이터로 결과 화면 다시 그리기
+                renderResults();
+            } catch (error) {
+                console.error("데이터 가져오기 실패:", error);
+                document.getElementById('results-list').innerHTML = '<div class="text-center text-xl font-bold text-red-500 py-10">❌ 결과를 가져오는데 실패했습니다. 구글 앱스크립트에 doGet 코드가 잘 추가되었는지 확인해주세요.</div>';
+            }
         }
 
         // [3] 투표 진행 화면 렌더링
