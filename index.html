@@ -1,250 +1,351 @@
-import React, { useState, useEffect } from 'react';
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>독서 에세이 배틀 투표</title>
+    <!-- 디자인을 위한 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 폭죽 및 등장 애니메이션 */
+        @keyframes bounceIn {
+            0% { transform: scale(0.9); opacity: 0; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-bounce-in {
+            animation: bounceIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        /* 요소 숨김 처리용 클래스 */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-[#f3f8ff] font-sans p-4 md:p-8">
 
-const App = () => {
-  const [stage, setStage] = useState('SETUP');
-  const [candidates, setCandidates] = useState([]);
-  const [newCandidateName, setNewCandidateName] = useState('');
-  const [gasUrl, setGasUrl] = useState('');
-  
-  // --- 새로운 기능: 로그인 및 1인 1표 제한 ---
-  const [votedStudents, setVotedStudents] = useState([]); // 투표를 완료한 학생 목록 저장
-  const [studentId, setStudentId] = useState('');
-  const [studentName, setStudentName] = useState('');
-  const [authError, setAuthError] = useState('');
-  const [showConfetti, setShowConfetti] = useState(false); // 폭죽 애니메이션 상태
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitMessage, setSubmitMessage] = useState('');
-
-  // 후보자 추가
-  const handleAddCandidate = (e) => {
-    e.preventDefault();
-    if (newCandidateName.trim() === '') return;
-    setCandidates([...candidates, { id: Date.now().toString(), name: newCandidateName.trim(), votes: 0 }]);
-    setNewCandidateName('');
-  };
-
-  // 후보자 삭제
-  const handleRemoveCandidate = (id) => {
-    setCandidates(candidates.filter(c => c.id !== id));
-  };
-
-  // 투표소 입장 (로그인 검증)
-  const handleLogin = (e) => {
-    e.preventDefault();
-    const idNum = parseInt(studentId);
-    
-    // 1번부터 26번까지만 허용
-    if (isNaN(idNum) || idNum < 1 || idNum > 26) {
-      setAuthError('학번은 1번부터 26번 사이여야 합니다.');
-      return;
-    }
-    if (studentName.trim() === '') {
-      setAuthError('이름을 정확히 입력해주세요.');
-      return;
-    }
-    
-    // 중복 투표 방지 로직
-    if (votedStudents.some(s => s.id === idNum)) {
-      setAuthError('앗! 이미 소중한 한 표를 행사하셨네요. (1인 1표)');
-      return;
-    }
-    
-    setAuthError('');
-    setStage('VOTING');
-  };
-
-  // 투표 처리
-  const handleVote = (candidate) => {
-    if(window.confirm(`'${candidate.name}' 학생이 우리 반 대표가 맞나요?`)) {
-      // 투표 수 증가
-      setCandidates(candidates.map(c => 
-        c.id === candidate.id ? { ...c, votes: c.votes + 1 } : c
-      ));
-      
-      // 투표 완료 명단에 학번과 이름 기록
-      setVotedStudents([...votedStudents, { id: parseInt(studentId), name: studentName }]);
-      
-      // 투표 완료 애니메이션(폭죽) 켜기
-      setShowConfetti(true);
-      
-      // 2.5초 뒤에 다음 사람을 위해 초기 로그인 화면으로 복귀
-      setTimeout(() => {
-        setShowConfetti(false);
-        setStudentId('');
-        setStudentName('');
-        setStage('LOGIN');
-      }, 2500);
-    }
-  };
-
-  // 결과 제출 (GAS)
-  const submitResultsToGas = async () => {
-    if (!gasUrl) { setSubmitMessage('앱스크립트 URL을 입력해주세요.'); return; }
-    setIsSubmitting(true);
-    setSubmitMessage('');
-    try {
-      const response = await fetch(gasUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          eventName: '독서 에세이 발표 대회 투표',
-          timestamp: new Date().toISOString(),
-          results: candidates.map(c => ({ name: c.name, votes: c.votes }))
-        })
-      });
-      if (response.ok) setSubmitMessage('성공적으로 저장되었습니다!');
-      else setSubmitMessage('저장에 실패했습니다.');
-    } catch (error) {
-      setSubmitMessage('전송 요청을 보냈습니다. (시트를 확인해주세요)');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const totalVotes = candidates.reduce((sum, c) => sum + c.votes, 0);
-
-  // --- 화면 렌더링 ---
-  const renderSetupStage = () => (
-    <div className="max-w-2xl mx-auto bg-white p-8 rounded-3xl shadow-xl border-4 border-yellow-200">
-      <h2 className="text-3xl font-extrabold text-gray-800 mb-6 text-center">🏆 후보 등록하기</h2>
-      <form onSubmit={handleAddCandidate} className="flex gap-2 mb-8">
-        <input type="text" value={newCandidateName} onChange={(e) => setNewCandidateName(e.target.value)} placeholder="발표한 학생 이름" className="flex-1 p-3 border-2 border-purple-200 rounded-xl focus:ring-4 focus:ring-purple-300 focus:outline-none" />
-        <button type="submit" className="bg-purple-500 text-white px-6 py-3 rounded-xl font-bold hover:bg-purple-600 transition transform hover:scale-105">추가</button>
-      </form>
-      <div className="mb-8">
-        <h3 className="text-xl font-bold text-gray-700 mb-3">등록된 후보 ({candidates.length}명)</h3>
-        <ul className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {candidates.map(c => (
-            <li key={c.id} className="flex items-center justify-between bg-yellow-50 p-3 rounded-xl border-2 border-yellow-200 font-bold">
-              <span>{c.name}</span>
-              <button onClick={() => handleRemoveCandidate(c.id)} className="text-red-400 hover:text-red-600">✖</button>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className="border-t-4 border-dashed border-gray-200 pt-6">
-        <input type="text" value={gasUrl} onChange={(e) => setGasUrl(e.target.value)} placeholder="Google Apps Script 웹앱 URL" className="w-full p-3 border-2 border-gray-200 rounded-xl mb-6 text-sm focus:outline-none" />
-        <button onClick={() => setStage('LOGIN')} disabled={candidates.length < 2} className={`w-full py-4 rounded-2xl font-black text-2xl transition-all ${candidates.length < 2 ? 'bg-gray-300 text-gray-500' : 'bg-gradient-to-r from-orange-400 to-pink-500 text-white hover:scale-105 hover:shadow-xl'}`}>
-          {candidates.length < 2 ? '후보를 더 등록해주세요' : '투표소 오픈하기! 🎉'}
-        </button>
-      </div>
-    </div>
-  );
-
-  const renderLoginStage = () => (
-    <div className="max-w-md mx-auto mt-10">
-      <div className="bg-white p-8 rounded-3xl shadow-2xl border-4 border-blue-200 relative overflow-hidden">
-        <div className="absolute -top-10 -right-10 text-9xl opacity-20">🤫</div>
-        <h2 className="text-3xl font-extrabold text-center text-blue-600 mb-8 relative z-10">1학년 6반 투표소</h2>
-        <form onSubmit={handleLogin} className="space-y-6 relative z-10">
-          <div>
-            <label className="block text-gray-700 font-bold mb-2">학번 (1~26)</label>
-            <input type="number" min="1" max="26" value={studentId} onChange={(e) => setStudentId(e.target.value)} placeholder="예: 5" className="w-full p-4 text-xl border-2 border-blue-100 rounded-xl bg-blue-50 focus:bg-white focus:border-blue-400 focus:outline-none transition" />
-          </div>
-          <div>
-            <label className="block text-gray-700 font-bold mb-2">이름</label>
-            <input type="text" value={studentName} onChange={(e) => setStudentName(e.target.value)} placeholder="이름을 입력하세요" className="w-full p-4 text-xl border-2 border-blue-100 rounded-xl bg-blue-50 focus:bg-white focus:border-blue-400 focus:outline-none transition" />
-          </div>
-          {authError && <p className="text-red-500 font-bold text-center animate-bounce">{authError}</p>}
-          <button type="submit" className="w-full py-4 bg-blue-500 text-white font-black text-xl rounded-2xl hover:bg-blue-600 hover:shadow-lg transform hover:-translate-y-1 transition-all">
-            투표하러 들어가기 🚀
-          </button>
-        </form>
-      </div>
-      <div className="text-center mt-6">
-        <button onClick={() => {if(window.confirm('투표를 강제로 종료합니까?')) setStage('RESULTS')}} className="text-sm text-gray-400 underline hover:text-red-500">
-          (선생님용) 투표 종료 및 결과 보기
-        </button>
-      </div>
-    </div>
-  );
-
-  const renderVotingStage = () => (
-    <div className="max-w-4xl mx-auto relative">
-      {/* 💥 폭죽 애니메이션 레이어 */}
-      {showConfetti && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none bg-black bg-opacity-20 backdrop-blur-sm">
-          <div className="text-center animate-bounce">
-            <div className="text-9xl mb-4">🎉</div>
-            <h2 className="text-5xl font-black text-white" style={{textShadow: '0px 4px 10px rgba(0,0,0,0.5)'}}>투표 완료!</h2>
-          </div>
-        </div>
-      )}
-
-      <div className="flex justify-between items-center mb-8 bg-white p-5 rounded-2xl shadow-sm border-2 border-green-200">
-        <h2 className="text-2xl font-bold text-gray-800">🤔 누가 가장 잘했을까?</h2>
-        <div className="text-right">
-          <span className="text-sm text-gray-500 font-bold">환영합니다!</span>
-          <span className="text-xl font-black text-green-600 block">{studentId}번 {studentName}</span>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-10">
-        {candidates.map(c => (
-          <button key={c.id} onClick={() => handleVote(c)} className="bg-white border-4 border-gray-100 hover:border-green-400 p-6 rounded-3xl shadow-md hover:shadow-xl transition-all transform hover:-translate-y-2 flex flex-col items-center justify-center min-h-[180px] group">
-            <div className="text-5xl mb-4 group-hover:scale-125 transition-transform duration-300">🤓</div>
-            <span className="text-2xl font-extrabold text-gray-800">{c.name}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
-  const renderResultsStage = () => {
-    const sorted = [...candidates].sort((a, b) => b.votes - a.votes);
-    return (
-      <div className="max-w-3xl mx-auto bg-white p-8 rounded-3xl shadow-xl border-4 border-indigo-200">
-        <div className="text-center mb-10">
-          <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-2">🎉 최종 투표 결과 🎉</h2>
-          <p className="text-gray-500 font-bold text-lg">총 {totalVotes}명이 투표에 참여했어요!</p>
-        </div>
-        <div className="space-y-6 mb-10">
-          {sorted.map((c, i) => {
-            const pct = totalVotes === 0 ? 0 : Math.round((c.votes / totalVotes) * 100);
-            return (
-              <div key={c.id}>
-                <div className="flex justify-between items-end mb-2">
-                  <div className="flex items-center gap-3">
-                    {i === 0 && <span className="text-4xl animate-bounce">👑</span>}
-                    <span className={`text-2xl font-black ${i === 0 ? 'text-purple-600' : 'text-gray-700'}`}>{c.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-black text-2xl text-gray-800">{c.votes}표</span>
-                  </div>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-6 overflow-hidden shadow-inner">
-                  <div className="h-6 rounded-full bg-gradient-to-r from-purple-400 to-pink-500 transition-all duration-1000 ease-out" style={{ width: `${pct}%` }}></div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="bg-indigo-50 p-6 rounded-2xl border-2 border-indigo-100 text-center">
-          <button onClick={submitResultsToGas} disabled={isSubmitting || !gasUrl} className="w-full sm:w-auto px-8 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition transform hover:scale-105 shadow-lg">
-            {isSubmitting ? '전송 중...' : '💾 구글 시트에 최종 결과 저장'}
-          </button>
-          {submitMessage && <p className="mt-4 font-bold text-indigo-700">{submitMessage}</p>}
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="min-h-screen bg-[#f3f8ff] font-sans p-4 md:p-8">
-      <header className="max-w-4xl mx-auto mb-10 text-center">
-        <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-blue-500 py-2">
-          📖 독서 에세이 배틀
+    <header class="max-w-4xl mx-auto mb-10 text-center">
+        <h1 class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-blue-500 py-2">
+            📖 독서 에세이 배틀
         </h1>
-      </header>
-      <main>
-        {stage === 'SETUP' && renderSetupStage()}
-        {stage === 'LOGIN' && renderLoginStage()}
-        {stage === 'VOTING' && renderVotingStage()}
-        {stage === 'RESULTS' && renderResultsStage()}
-      </main>
-    </div>
-  );
-};
+        <p class="text-gray-600 mt-2">최고의 에세이를 발표한 친구에게 투표해주세요!</p>
+    </header>
 
-export default App;
+    <main id="app-container">
+        
+        <!-- ================= [1] 후보 등록 (SETUP) 화면 ================= -->
+        <div id="setup-stage" class="max-w-2xl mx-auto bg-white p-8 rounded-3xl shadow-xl border-4 border-yellow-200">
+            <h2 class="text-3xl font-extrabold text-gray-800 mb-6 text-center">🏆 후보 등록하기</h2>
+            
+            <form id="add-candidate-form" onsubmit="addCandidate(event)" class="flex gap-2 mb-8">
+                <input type="text" id="newCandidateName" placeholder="발표한 학생 이름" class="flex-1 p-3 border-2 border-purple-200 rounded-xl focus:ring-4 focus:ring-purple-300 focus:outline-none" />
+                <button type="submit" class="bg-purple-500 text-white px-6 py-3 rounded-xl font-bold hover:bg-purple-600 transition transform hover:scale-105">추가</button>
+            </form>
+            
+            <div class="mb-8">
+                <h3 class="text-xl font-bold text-gray-700 mb-3">등록된 후보 (<span id="candidate-count">0</span>명)</h3>
+                <ul id="candidate-list" class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <!-- 후보자 목록이 JS를 통해 여기에 들어갑니다. -->
+                </ul>
+            </div>
+            
+            <div class="border-t-4 border-dashed border-gray-200 pt-6">
+                <input type="text" id="gasUrl" placeholder="Google Apps Script 웹앱 URL (선택)" class="w-full p-3 border-2 border-gray-200 rounded-xl mb-6 text-sm focus:outline-none" />
+                <button id="open-voting-btn" onclick="openVoting()" disabled class="w-full py-4 rounded-2xl font-black text-2xl transition-all bg-gray-300 text-gray-500 cursor-not-allowed">
+                    후보를 더 등록해주세요
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= [2] 로그인 (LOGIN) 화면 ================= -->
+        <div id="login-stage" class="hidden max-w-md mx-auto mt-10">
+            <div class="bg-white p-8 rounded-3xl shadow-2xl border-4 border-blue-200 relative overflow-hidden">
+                <div class="absolute -top-10 -right-10 text-9xl opacity-20">🤫</div>
+                <h2 class="text-3xl font-extrabold text-center text-blue-600 mb-8 relative z-10">1학년 6반 투표소</h2>
+                
+                <form onsubmit="handleLogin(event)" class="space-y-6 relative z-10">
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2">학번 (1~26)</label>
+                        <input type="number" id="studentId" min="1" max="26" placeholder="예: 5" class="w-full p-4 text-xl border-2 border-blue-100 rounded-xl bg-blue-50 focus:bg-white focus:border-blue-400 focus:outline-none transition" />
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2">이름</label>
+                        <input type="text" id="studentName" placeholder="이름을 입력하세요" class="w-full p-4 text-xl border-2 border-blue-100 rounded-xl bg-blue-50 focus:bg-white focus:border-blue-400 focus:outline-none transition" />
+                    </div>
+                    
+                    <p id="authError" class="text-red-500 font-bold text-center animate-bounce"></p>
+                    
+                    <button type="submit" class="w-full py-4 bg-blue-500 text-white font-black text-xl rounded-2xl hover:bg-blue-600 hover:shadow-lg transform hover:-translate-y-1 transition-all">
+                        투표하러 들어가기 🚀
+                    </button>
+                </form>
+            </div>
+            <div class="text-center mt-6">
+                <button onclick="forceEndVoting()" class="text-sm text-gray-400 underline hover:text-red-500">
+                    (선생님용) 투표 종료 및 결과 보기
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= [3] 투표 진행 (VOTING) 화면 ================= -->
+        <div id="voting-stage" class="hidden max-w-4xl mx-auto relative">
+            
+            <!-- 폭죽 애니메이션 레이어 (투표 완료시 등장) -->
+            <div id="confetti-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center pointer-events-none bg-black bg-opacity-20 backdrop-blur-sm">
+                <div class="text-center animate-bounce-in">
+                    <div class="text-9xl mb-4">🎉</div>
+                    <h2 class="text-5xl font-black text-white" style="text-shadow: 0px 4px 10px rgba(0,0,0,0.5);">투표 완료!</h2>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center mb-8 bg-white p-5 rounded-2xl shadow-sm border-2 border-green-200">
+                <h2 class="text-2xl font-bold text-gray-800">🤔 누가 가장 잘했을까?</h2>
+                <div class="text-right">
+                    <span class="text-sm text-gray-500 font-bold">환영합니다!</span>
+                    <span id="voting-student-info" class="text-xl font-black text-green-600 block">0번 학생</span>
+                </div>
+            </div>
+            
+            <div id="voting-candidate-list" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-10">
+                <!-- 후보 버튼들이 여기에 생성됩니다 -->
+            </div>
+        </div>
+
+        <!-- ================= [4] 결과 확인 (RESULTS) 화면 ================= -->
+        <div id="results-stage" class="hidden max-w-3xl mx-auto bg-white p-8 rounded-3xl shadow-xl border-4 border-indigo-200">
+            <div class="text-center mb-10">
+                <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-2">🎉 최종 투표 결과 🎉</h2>
+                <p class="text-gray-500 font-bold text-lg">총 <span id="total-votes-count">0</span>명이 투표에 참여했어요!</p>
+            </div>
+            
+            <div id="results-list" class="space-y-6 mb-10">
+                <!-- 결과 그래프가 여기에 생성됩니다 -->
+            </div>
+            
+            <div class="bg-indigo-50 p-6 rounded-2xl border-2 border-indigo-100 text-center">
+                <button id="submit-gas-btn" onclick="submitToGas()" class="w-full sm:w-auto px-8 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition transform hover:scale-105 shadow-lg">
+                    💾 구글 시트에 최종 결과 저장
+                </button>
+                <p id="submit-message" class="mt-4 font-bold text-indigo-700"></p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 자바스크립트 로직 -->
+    <script>
+        // 전역 상태 변수
+        let candidates = [];
+        let votedStudents = [];
+        let currentStudentId = null;
+        let currentStudentName = null;
+
+        // 화면 전환 함수
+        function switchStage(stageId) {
+            document.getElementById('setup-stage').classList.add('hidden');
+            document.getElementById('login-stage').classList.add('hidden');
+            document.getElementById('voting-stage').classList.add('hidden');
+            document.getElementById('results-stage').classList.add('hidden');
+            
+            document.getElementById(stageId).classList.remove('hidden');
+        }
+
+        /* ----- [1] SETUP 스테이지 관련 함수 ----- */
+        function addCandidate(event) {
+            event.preventDefault();
+            const input = document.getElementById('newCandidateName');
+            const name = input.value.trim();
+            if(!name) return;
+            
+            candidates.push({ id: Date.now().toString(), name: name, votes: 0 });
+            input.value = '';
+            renderSetupCandidates();
+        }
+
+        function removeCandidate(id) {
+            candidates = candidates.filter(c => c.id !== id);
+            renderSetupCandidates();
+        }
+
+        function renderSetupCandidates() {
+            const list = document.getElementById('candidate-list');
+            list.innerHTML = candidates.map(c => `
+                <li class="flex items-center justify-between bg-yellow-50 p-3 rounded-xl border-2 border-yellow-200 font-bold">
+                    <span>${c.name}</span>
+                    <button type="button" onclick="removeCandidate('${c.id}')" class="text-red-400 hover:text-red-600">✖</button>
+                </li>
+            `).join('');
+            
+            document.getElementById('candidate-count').innerText = candidates.length;
+            
+            const openBtn = document.getElementById('open-voting-btn');
+            if (candidates.length < 2) {
+                openBtn.disabled = true;
+                openBtn.className = "w-full py-4 rounded-2xl font-black text-2xl transition-all bg-gray-300 text-gray-500 cursor-not-allowed";
+                openBtn.innerText = "후보를 더 등록해주세요";
+            } else {
+                openBtn.disabled = false;
+                openBtn.className = "w-full py-4 rounded-2xl font-black text-2xl transition-all bg-gradient-to-r from-orange-400 to-pink-500 text-white hover:scale-105 hover:shadow-xl cursor-pointer";
+                openBtn.innerText = "투표소 오픈하기! 🎉";
+            }
+        }
+
+        function openVoting() {
+            if(candidates.length >= 2) {
+                switchStage('login-stage');
+            }
+        }
+
+        /* ----- [2] LOGIN 스테이지 관련 함수 ----- */
+        function handleLogin(event) {
+            event.preventDefault();
+            const idInput = document.getElementById('studentId').value;
+            const nameInput = document.getElementById('studentName').value.trim();
+            const errorText = document.getElementById('authError');
+            
+            const idNum = parseInt(idInput);
+
+            if (isNaN(idNum) || idNum < 1 || idNum > 26) {
+                errorText.innerText = '학번은 1번부터 26번 사이여야 합니다.';
+                return;
+            }
+            if (nameInput === '') {
+                errorText.innerText = '이름을 정확히 입력해주세요.';
+                return;
+            }
+            
+            // 중복 투표 체크
+            const alreadyVoted = votedStudents.some(s => s.id === idNum);
+            if (alreadyVoted) {
+                errorText.innerText = '앗! 이미 소중한 한 표를 행사하셨네요. (1인 1표)';
+                return;
+            }
+
+            errorText.innerText = '';
+            currentStudentId = idNum;
+            currentStudentName = nameInput;
+            
+            document.getElementById('voting-student-info').innerText = `${idNum}번 ${nameInput}`;
+            renderVotingCandidates();
+            switchStage('voting-stage');
+        }
+
+        function forceEndVoting() {
+            if(confirm('투표를 강제로 종료하고 결과를 확인하시겠습니까?')) {
+                renderResults();
+            }
+        }
+
+        /* ----- [3] VOTING 스테이지 관련 함수 ----- */
+        function renderVotingCandidates() {
+            const list = document.getElementById('voting-candidate-list');
+            list.innerHTML = candidates.map(c => `
+                <button onclick="handleVote('${c.id}')" class="bg-white border-4 border-gray-100 hover:border-green-400 p-6 rounded-3xl shadow-md hover:shadow-xl transition-all transform hover:-translate-y-2 flex flex-col items-center justify-center min-h-[180px] group">
+                    <div class="text-5xl mb-4 group-hover:scale-125 transition-transform duration-300">🤓</div>
+                    <span class="text-2xl font-extrabold text-gray-800">${c.name}</span>
+                </button>
+            `).join('');
+        }
+
+        function handleVote(candidateId) {
+            const candidate = candidates.find(c => c.id === candidateId);
+            if(confirm(`'${candidate.name}' 학생이 우리 반 대표가 맞나요?`)) {
+                // 투표 수 1 증가
+                candidate.votes += 1;
+                
+                // 투표 명단에 추가
+                votedStudents.push({ id: currentStudentId, name: currentStudentName });
+                
+                // 폭죽 보여주기
+                const confetti = document.getElementById('confetti-overlay');
+                confetti.classList.remove('hidden');
+                
+                // 2.5초 뒤 초기화 및 로그인 화면으로 복귀
+                setTimeout(() => {
+                    confetti.classList.add('hidden');
+                    document.getElementById('studentId').value = '';
+                    document.getElementById('studentName').value = '';
+                    switchStage('login-stage');
+                }, 2500);
+            }
+        }
+
+        /* ----- [4] RESULTS 스테이지 관련 함수 ----- */
+        function renderResults() {
+            switchStage('results-stage');
+            
+            const totalVotes = candidates.reduce((sum, c) => sum + c.votes, 0);
+            document.getElementById('total-votes-count').innerText = totalVotes;
+            
+            // 투표수 기준으로 내림차순 정렬
+            const sorted = [...candidates].sort((a, b) => b.votes - a.votes);
+            const resultsList = document.getElementById('results-list');
+            
+            resultsList.innerHTML = sorted.map((c, i) => {
+                const pct = totalVotes === 0 ? 0 : Math.round((c.votes / totalVotes) * 100);
+                const crownIcon = i === 0 ? '<span class="text-4xl animate-bounce">👑</span>' : '';
+                const titleColor = i === 0 ? 'text-purple-600' : 'text-gray-700';
+                
+                return `
+                    <div>
+                        <div class="flex justify-between items-end mb-2">
+                            <div class="flex items-center gap-3">
+                                ${crownIcon}
+                                <span class="text-2xl font-black ${titleColor}">${c.name}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="font-black text-2xl text-gray-800">${c.votes}표</span>
+                            </div>
+                        </div>
+                        <div class="w-full bg-gray-100 rounded-full h-6 overflow-hidden shadow-inner">
+                            <div class="h-6 rounded-full bg-gradient-to-r from-purple-400 to-pink-500 transition-all duration-1000 ease-out" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function submitToGas() {
+            const gasUrl = document.getElementById('gasUrl').value.trim();
+            const btn = document.getElementById('submit-gas-btn');
+            const msg = document.getElementById('submit-message');
+
+            if (!gasUrl) {
+                msg.innerText = '* 처음 화면(설정)에서 앱스크립트 URL을 입력해야 합니다.';
+                msg.className = "mt-4 font-bold text-red-500";
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = '전송 중...';
+            msg.innerText = '';
+
+            try {
+                const response = await fetch(gasUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        eventName: '독서 에세이 발표 대회 투표',
+                        timestamp: new Date().toISOString(),
+                        results: candidates.map(c => ({ name: c.name, votes: c.votes }))
+                    })
+                });
+
+                if (response.ok) {
+                    msg.innerText = '성공적으로 스프레드시트에 저장되었습니다!';
+                    msg.className = "mt-4 font-bold text-green-600";
+                } else {
+                    msg.innerText = '저장에 실패했습니다. URL을 다시 확인해주세요.';
+                    msg.className = "mt-4 font-bold text-red-500";
+                }
+            } catch (error) {
+                msg.innerText = '요청을 보냈습니다. (네트워크나 CORS 이슈로 에러가 뜰 수 있으니 시트를 직접 확인해보세요)';
+                msg.className = "mt-4 font-bold text-indigo-700";
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '💾 구글 시트에 최종 결과 저장';
+            }
+        }
+    </script>
+</body>
+</html>
