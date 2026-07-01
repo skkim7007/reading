@@ -26,33 +26,35 @@
 
     <header class="max-w-4xl mx-auto mb-10 text-center">
         <h1 class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-blue-500 py-2">
-            📖 독서 에세이 배틀
+            📖 1학년 6반 독서 에세이 배틀
         </h1>
-        <p class="text-gray-600 mt-2">최고의 에세이를 발표한 친구에게 투표해주세요!</p>
+        <p class="text-gray-600 mt-2 font-bold">최고의 에세이를 발표한 친구에게 소중한 한 표를 행사해주세요!</p>
     </header>
 
     <main id="app-container">
         
         <!-- ================= [1] 후보 등록 (SETUP) 화면 ================= -->
         <div id="setup-stage" class="max-w-2xl mx-auto bg-white p-8 rounded-3xl shadow-xl border-4 border-yellow-200">
-            <h2 class="text-3xl font-extrabold text-gray-800 mb-6 text-center">🏆 후보 등록하기</h2>
+            <h2 class="text-3xl font-extrabold text-gray-800 mb-6 text-center">🏆 후보 등록하기 (선생님/진행자용)</h2>
             
             <form id="add-candidate-form" onsubmit="addCandidate(event)" class="flex gap-2 mb-8">
-                <input type="text" id="newCandidateName" placeholder="발표한 학생 이름" class="flex-1 p-3 border-2 border-purple-200 rounded-xl focus:ring-4 focus:ring-purple-300 focus:outline-none" />
+                <input type="text" id="newCandidateName" placeholder="발표한 학생 이름 입력" class="flex-1 p-3 border-2 border-purple-200 rounded-xl focus:ring-4 focus:ring-purple-300 focus:outline-none" />
                 <button type="submit" class="bg-purple-500 text-white px-6 py-3 rounded-xl font-bold hover:bg-purple-600 transition transform hover:scale-105">추가</button>
             </form>
             
             <div class="mb-8">
-                <h3 class="text-xl font-bold text-gray-700 mb-3">등록된 후보 (<span id="candidate-count">0</span>명)</h3>
+                <h3 class="text-xl font-bold text-gray-700 mb-3">등록된 발표자 (<span id="candidate-count">0</span>명)</h3>
                 <ul id="candidate-list" class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    <!-- 후보자 목록이 JS를 통해 여기에 들어갑니다. -->
+                    <!-- 후보자 목록이 생성되는 곳 -->
                 </ul>
             </div>
             
             <div class="border-t-4 border-dashed border-gray-200 pt-6">
-                <input type="text" id="gasUrl" placeholder="Google Apps Script 웹앱 URL (선택)" class="w-full p-3 border-2 border-gray-200 rounded-xl mb-6 text-sm focus:outline-none" />
+                <h3 class="text-lg font-bold text-gray-700 mb-2">⚙️ 결과 저장 설정 (앱스크립트)</h3>
+                <input type="text" id="gasUrl" placeholder="Google Apps Script 웹앱 URL을 붙여넣으세요" class="w-full p-3 border-2 border-gray-200 rounded-xl mb-6 text-sm focus:outline-none focus:border-indigo-400" />
+                
                 <button id="open-voting-btn" onclick="openVoting()" disabled class="w-full py-4 rounded-2xl font-black text-2xl transition-all bg-gray-300 text-gray-500 cursor-not-allowed">
-                    후보를 더 등록해주세요
+                    발표자를 2명 이상 등록해주세요
                 </button>
             </div>
         </div>
@@ -61,16 +63,16 @@
         <div id="login-stage" class="hidden max-w-md mx-auto mt-10">
             <div class="bg-white p-8 rounded-3xl shadow-2xl border-4 border-blue-200 relative overflow-hidden">
                 <div class="absolute -top-10 -right-10 text-9xl opacity-20">🤫</div>
-                <h2 class="text-3xl font-extrabold text-center text-blue-600 mb-8 relative z-10">1학년 6반 투표소</h2>
+                <h2 class="text-3xl font-extrabold text-center text-blue-600 mb-8 relative z-10">투표소 입장</h2>
                 
                 <form onsubmit="handleLogin(event)" class="space-y-6 relative z-10">
                     <div>
-                        <label class="block text-gray-700 font-bold mb-2">학번 (1~26)</label>
+                        <label class="block text-gray-700 font-bold mb-2">학번 (1~26번)</label>
                         <input type="number" id="studentId" min="1" max="26" placeholder="예: 5" class="w-full p-4 text-xl border-2 border-blue-100 rounded-xl bg-blue-50 focus:bg-white focus:border-blue-400 focus:outline-none transition" />
                     </div>
                     <div>
                         <label class="block text-gray-700 font-bold mb-2">이름</label>
-                        <input type="text" id="studentName" placeholder="이름을 입력하세요" class="w-full p-4 text-xl border-2 border-blue-100 rounded-xl bg-blue-50 focus:bg-white focus:border-blue-400 focus:outline-none transition" />
+                        <input type="text" id="studentName" placeholder="본인 이름을 적어주세요" class="w-full p-4 text-xl border-2 border-blue-100 rounded-xl bg-blue-50 focus:bg-white focus:border-blue-400 focus:outline-none transition" />
                     </div>
                     
                     <p id="authError" class="text-red-500 font-bold text-center animate-bounce"></p>
@@ -81,8 +83,8 @@
                 </form>
             </div>
             <div class="text-center mt-6">
-                <button onclick="forceEndVoting()" class="text-sm text-gray-400 underline hover:text-red-500">
-                    (선생님용) 투표 종료 및 결과 보기
+                <button onclick="forceEndVoting()" class="text-sm text-gray-400 font-bold underline hover:text-red-500">
+                    (선생님 전용) 투표 종료 및 결과 보기
                 </button>
             </div>
         </div>
@@ -102,7 +104,7 @@
                 <h2 class="text-2xl font-bold text-gray-800">🤔 누가 가장 잘했을까?</h2>
                 <div class="text-right">
                     <span class="text-sm text-gray-500 font-bold">환영합니다!</span>
-                    <span id="voting-student-info" class="text-xl font-black text-green-600 block">0번 학생</span>
+                    <span id="voting-student-info" class="text-xl font-black text-green-600 block"></span>
                 </div>
             </div>
             
@@ -124,7 +126,7 @@
             
             <div class="bg-indigo-50 p-6 rounded-2xl border-2 border-indigo-100 text-center">
                 <button id="submit-gas-btn" onclick="submitToGas()" class="w-full sm:w-auto px-8 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition transform hover:scale-105 shadow-lg">
-                    💾 구글 시트에 최종 결과 저장
+                    💾 구글 스프레드시트에 결과 전송
                 </button>
                 <p id="submit-message" class="mt-4 font-bold text-indigo-700"></p>
             </div>
@@ -132,11 +134,10 @@
 
     </main>
 
-    <!-- 자바스크립트 로직 -->
     <script>
         // 전역 상태 변수
         let candidates = [];
-        let votedStudents = [];
+        let votedStudents = []; // 투표를 완료한 학번 저장 (1인 1표 확인용)
         let currentStudentId = null;
         let currentStudentName = null;
 
@@ -150,7 +151,7 @@
             document.getElementById(stageId).classList.remove('hidden');
         }
 
-        /* ----- [1] SETUP 스테이지 관련 함수 ----- */
+        // [1] 후보 추가 로직
         function addCandidate(event) {
             event.preventDefault();
             const input = document.getElementById('newCandidateName');
@@ -162,11 +163,13 @@
             renderSetupCandidates();
         }
 
+        // 후보 삭제 로직
         function removeCandidate(id) {
             candidates = candidates.filter(c => c.id !== id);
             renderSetupCandidates();
         }
 
+        // 등록된 후보 화면에 그리기
         function renderSetupCandidates() {
             const list = document.getElementById('candidate-list');
             list.innerHTML = candidates.map(c => `
@@ -182,7 +185,7 @@
             if (candidates.length < 2) {
                 openBtn.disabled = true;
                 openBtn.className = "w-full py-4 rounded-2xl font-black text-2xl transition-all bg-gray-300 text-gray-500 cursor-not-allowed";
-                openBtn.innerText = "후보를 더 등록해주세요";
+                openBtn.innerText = "발표자를 2명 이상 등록해주세요";
             } else {
                 openBtn.disabled = false;
                 openBtn.className = "w-full py-4 rounded-2xl font-black text-2xl transition-all bg-gradient-to-r from-orange-400 to-pink-500 text-white hover:scale-105 hover:shadow-xl cursor-pointer";
@@ -196,7 +199,7 @@
             }
         }
 
-        /* ----- [2] LOGIN 스테이지 관련 함수 ----- */
+        // [2] 로그인 검증 (학번, 이름, 중복투표 체크)
         function handleLogin(event) {
             event.preventDefault();
             const idInput = document.getElementById('studentId').value;
@@ -205,19 +208,20 @@
             
             const idNum = parseInt(idInput);
 
+            // 1~26번 검증
             if (isNaN(idNum) || idNum < 1 || idNum > 26) {
-                errorText.innerText = '학번은 1번부터 26번 사이여야 합니다.';
+                errorText.innerText = '학번은 1번부터 26번 사이로 적어주세요!';
                 return;
             }
             if (nameInput === '') {
-                errorText.innerText = '이름을 정확히 입력해주세요.';
+                errorText.innerText = '이름을 정확히 입력해주세요!';
                 return;
             }
             
-            // 중복 투표 체크
+            // 1인 1표 중복투표 체크
             const alreadyVoted = votedStudents.some(s => s.id === idNum);
             if (alreadyVoted) {
-                errorText.innerText = '앗! 이미 소중한 한 표를 행사하셨네요. (1인 1표)';
+                errorText.innerText = '앗! 이미 투표를 완료한 학번입니다. (1인 1표)';
                 return;
             }
 
@@ -231,12 +235,12 @@
         }
 
         function forceEndVoting() {
-            if(confirm('투표를 강제로 종료하고 결과를 확인하시겠습니까?')) {
+            if(confirm('투표를 모두 마치고 결과를 확인하시겠습니까?')) {
                 renderResults();
             }
         }
 
-        /* ----- [3] VOTING 스테이지 관련 함수 ----- */
+        // [3] 투표 진행 화면 렌더링
         function renderVotingCandidates() {
             const list = document.getElementById('voting-candidate-list');
             list.innerHTML = candidates.map(c => `
@@ -247,20 +251,19 @@
             `).join('');
         }
 
+        // 투표 버튼 클릭 시 이벤트
         function handleVote(candidateId) {
             const candidate = candidates.find(c => c.id === candidateId);
-            if(confirm(`'${candidate.name}' 학생이 우리 반 대표가 맞나요?`)) {
-                // 투표 수 1 증가
+            if(confirm(`'${candidate.name}' 학생이 우리 반 최고의 에세이 발표자가 맞나요?`)) {
+                
                 candidate.votes += 1;
+                votedStudents.push({ id: currentStudentId, name: currentStudentName }); // 투표 완료 명단에 추가
                 
-                // 투표 명단에 추가
-                votedStudents.push({ id: currentStudentId, name: currentStudentName });
-                
-                // 폭죽 보여주기
+                // 폭죽 이펙트 보여주기
                 const confetti = document.getElementById('confetti-overlay');
                 confetti.classList.remove('hidden');
                 
-                // 2.5초 뒤 초기화 및 로그인 화면으로 복귀
+                // 2.5초 뒤 다음 사람을 위해 로그인 화면으로 되돌아가기
                 setTimeout(() => {
                     confetti.classList.add('hidden');
                     document.getElementById('studentId').value = '';
@@ -270,14 +273,14 @@
             }
         }
 
-        /* ----- [4] RESULTS 스테이지 관련 함수 ----- */
+        // [4] 결과 화면 렌더링
         function renderResults() {
             switchStage('results-stage');
             
             const totalVotes = candidates.reduce((sum, c) => sum + c.votes, 0);
             document.getElementById('total-votes-count').innerText = totalVotes;
             
-            // 투표수 기준으로 내림차순 정렬
+            // 득표수 순으로 내림차순 정렬
             const sorted = [...candidates].sort((a, b) => b.votes - a.votes);
             const resultsList = document.getElementById('results-list');
             
@@ -305,13 +308,14 @@
             }).join('');
         }
 
+        // 앱스크립트로 데이터 전송 (CORS 대응)
         async function submitToGas() {
             const gasUrl = document.getElementById('gasUrl').value.trim();
             const btn = document.getElementById('submit-gas-btn');
             const msg = document.getElementById('submit-message');
 
             if (!gasUrl) {
-                msg.innerText = '* 처음 화면(설정)에서 앱스크립트 URL을 입력해야 합니다.';
+                msg.innerText = '* 처음 화면에서 앱스크립트 URL을 입력해야 합니다.';
                 msg.className = "mt-4 font-bold text-red-500";
                 return;
             }
@@ -325,7 +329,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({
-                        eventName: '독서 에세이 발표 대회 투표',
+                        eventName: '1학년 6반 독서 에세이 배틀 투표 결과',
                         timestamp: new Date().toISOString(),
                         results: candidates.map(c => ({ name: c.name, votes: c.votes }))
                     })
@@ -339,11 +343,12 @@
                     msg.className = "mt-4 font-bold text-red-500";
                 }
             } catch (error) {
-                msg.innerText = '요청을 보냈습니다. (네트워크나 CORS 이슈로 에러가 뜰 수 있으니 시트를 직접 확인해보세요)';
+                // Apps Script 특성상 CORS 이슈로 에러로 처리될 수 있으나 실제 데이터는 들어가는 경우가 많습니다.
+                msg.innerText = '요청 완료! (시트에 데이터가 들어왔는지 확인해보세요)';
                 msg.className = "mt-4 font-bold text-indigo-700";
             } finally {
                 btn.disabled = false;
-                btn.innerText = '💾 구글 시트에 최종 결과 저장';
+                btn.innerText = '💾 구글 스프레드시트에 결과 전송';
             }
         }
     </script>
