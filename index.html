@@ -82,6 +82,17 @@
             </div>
         </div>
 
+        <!-- ================= [1.5] 선생님 대기 화면 (새로 추가) ================= -->
+        <div id="teacher-waiting-stage" class="hidden max-w-2xl mx-auto mt-20 text-center bg-white p-10 rounded-3xl shadow-xl border-4 border-blue-200 relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 text-9xl opacity-20">☕</div>
+            <div class="text-7xl mb-6 animate-pulse">⏳</div>
+            <h2 class="text-3xl font-extrabold text-gray-800 mb-4 relative z-10">학생들이 투표를 진행 중입니다...</h2>
+            <p class="text-gray-600 font-bold mb-10 relative z-10">학생들에게 링크를 공유한 뒤, 투표가 모두 끝날 때까지 기다려주세요.</p>
+            <button onclick="forceEndVoting()" class="w-full py-4 bg-red-500 text-white font-black text-2xl rounded-2xl hover:bg-red-600 hover:shadow-lg transform hover:-translate-y-1 transition-all relative z-10">
+                🚨 투표 종료 및 결과 확인하기
+            </button>
+        </div>
+
         <!-- ================= [2] 로그인 (LOGIN) 화면 ================= -->
         <div id="login-stage" class="hidden max-w-md mx-auto mt-10">
             <div class="bg-white p-8 rounded-3xl shadow-2xl border-4 border-blue-200 relative overflow-hidden">
@@ -164,6 +175,7 @@
         let currentStudentId = null;
         let currentStudentName = null;
         let isStudentMode = false; // 추가: 학생용 링크로 접속했는지 여부
+        let isVoteProcessing = false; // 추가: 다중 클릭 연타 방지용 잠금 장치
 
         // 커스텀 모달 상태
         let confirmAction = null;
@@ -218,6 +230,11 @@
         // 화면 전환 함수
         function switchStage(stageId) {
             document.getElementById('setup-stage').classList.add('hidden');
+            
+            // 새로 추가된 선생님 대기 화면 숨김 처리
+            const waitingStage = document.getElementById('teacher-waiting-stage');
+            if(waitingStage) waitingStage.classList.add('hidden');
+            
             document.getElementById('login-stage').classList.add('hidden');
             document.getElementById('voting-stage').classList.add('hidden');
             document.getElementById('results-stage').classList.add('hidden');
@@ -269,7 +286,8 @@
 
         function openVoting() {
             if(candidates.length >= 2) {
-                switchStage('login-stage');
+                // 로그인 화면 대신 새로 만든 '선생님 대기 화면'으로 바로 넘어감
+                switchStage('teacher-waiting-stage');
             }
         }
 
@@ -332,6 +350,7 @@
             errorText.innerText = '';
             currentStudentId = idNum;
             currentStudentName = nameInput;
+            isVoteProcessing = false; // 입장 시 투표 잠금 해제
             
             document.getElementById('voting-student-info').innerText = `${idNum}번 ${nameInput}`;
             renderVotingCandidates();
@@ -392,37 +411,49 @@
 
         // 투표 버튼 클릭 시 이벤트
         function handleVote(candidateId) {
+            if (isVoteProcessing) return; // 🌟 연타 방지: 이미 처리 중이면 클릭 무시
+            isVoteProcessing = true;      // 🌟 연타 방지: 첫 클릭 시 곧바로 잠금 설정
+
             const candidate = candidates.find(c => c.id === candidateId);
             
             // "정말 투표하시겠습니까?" 팝업 없이 1번 터치로 즉시 투표 완료 처리
             candidate.votes += 1;
             votedStudents.push({ id: currentStudentId, name: currentStudentName }); // 투표 완료 명단에 추가
             
-            // 폭죽 이펙트 보여주기
-            const confetti = document.getElementById('confetti-overlay');
-            confetti.classList.remove('hidden');
-            
             if (isStudentMode) {
                 // [학생 각자 스마트폰 모드] 단일 투표 내역을 즉시 구글 시트로 전송
                 submitSingleVoteToGas(currentStudentId, currentStudentName, candidate.name);
                 
-                // 2.5초 뒤 완전히 투표 종료 화면으로 변경 (재투표 방지)
-                setTimeout(() => {
-                    confetti.classList.add('hidden');
-                    document.getElementById('voting-stage').innerHTML = `
-                        <div class="bg-white p-10 rounded-3xl shadow-xl text-center border-4 border-green-200 mt-20">
-                            <h2 class="text-5xl font-black text-green-600 mb-6">투표 완료!</h2>
-                            <p class="text-xl font-bold text-gray-700 mb-4">🎉 ${candidate.name} 학생에게<br>소중한 한 표가 전송되었습니다.</p>
-                            <p class="text-md text-gray-500">선생님의 안내를 기다려주세요 😊</p>
+                // 🌟 즉각적으로 후보 버튼들을 완전히 없애고 투표 완료 화면으로 덮어씌움 (완벽한 다중 클릭 차단)
+                document.getElementById('voting-stage').innerHTML = `
+                    <div id="confetti-overlay" class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none bg-black bg-opacity-20 backdrop-blur-sm">
+                        <div class="text-center animate-bounce-in">
+                            <div class="text-9xl mb-4">🎉</div>
+                            <h2 class="text-5xl font-black text-white" style="text-shadow: 0px 4px 10px rgba(0,0,0,0.5);">투표 완료!</h2>
                         </div>
-                    `;
+                    </div>
+                    <div class="bg-white p-10 rounded-3xl shadow-xl text-center border-4 border-green-200 mt-20 relative z-10 animate-bounce-in">
+                        <h2 class="text-5xl font-black text-green-600 mb-6">투표 완료!</h2>
+                        <p class="text-xl font-bold text-gray-700 mb-4">🎉 <span class="text-blue-600 text-2xl">${candidate.name}</span> 학생에게<br>소중한 한 표가 전송되었습니다.</p>
+                        <p class="text-md text-gray-500">선생님의 안내를 기다려주세요 😊</p>
+                    </div>
+                `;
+                
+                // 2.5초 뒤 폭죽 효과만 사라지게 함 (완료 텍스트는 계속 유지)
+                setTimeout(() => {
+                    const confetti = document.getElementById('confetti-overlay');
+                    if (confetti) confetti.classList.add('hidden');
                 }, 2500);
             } else {
-                // [선생님 PC 1대 공용 모드] 다음 사람을 위해 로그인 화면으로 되돌아가기
+                // [선생님 PC 1대 공용 모드] 폭죽 띄우고 다음 사람을 위해 로그인 화면으로 복귀
+                const confetti = document.getElementById('confetti-overlay');
+                confetti.classList.remove('hidden');
+
                 setTimeout(() => {
                     confetti.classList.add('hidden');
                     document.getElementById('studentId').value = '';
                     document.getElementById('studentName').value = '';
+                    isVoteProcessing = false; // 다음 사람을 위해 잠금 해제
                     switchStage('login-stage');
                 }, 2500);
             }
