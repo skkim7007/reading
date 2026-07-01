@@ -24,6 +24,19 @@
 </head>
 <body class="min-h-screen bg-[#f3f8ff] font-sans p-4 md:p-8">
 
+    <!-- 공통 커스텀 모달 (확인창) -->
+    <div id="custom-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm px-4">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl text-center max-w-sm w-full animate-bounce-in">
+            <div id="custom-modal-icon" class="text-6xl mb-4">🚨</div>
+            <h3 id="custom-modal-title" class="text-2xl font-extrabold text-gray-800 mb-4">확인</h3>
+            <p id="custom-modal-message" class="text-lg text-gray-600 mb-8 font-bold"></p>
+            <div class="flex justify-center gap-3">
+                <button onclick="closeCustomModal()" class="flex-1 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 transition">취소</button>
+                <button id="custom-modal-confirm-btn" onclick="executeConfirm()" class="flex-1 py-3 text-white font-bold rounded-xl transition shadow-lg">확인</button>
+            </div>
+        </div>
+    </div>
+
     <header class="max-w-4xl mx-auto mb-10 text-center">
         <h1 class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-blue-500 py-2">
             📖 1학년 6반 독서 에세이 배틀
@@ -151,6 +164,30 @@
         let currentStudentId = null;
         let currentStudentName = null;
         let isStudentMode = false; // 추가: 학생용 링크로 접속했는지 여부
+
+        // 커스텀 모달 상태
+        let confirmAction = null;
+
+        function showCustomModal(icon, title, message, btnText, btnColor, action) {
+            document.getElementById('custom-modal-icon').innerText = icon;
+            document.getElementById('custom-modal-title').innerText = title;
+            document.getElementById('custom-modal-message').innerText = message;
+            const btn = document.getElementById('custom-modal-confirm-btn');
+            btn.innerText = btnText;
+            btn.className = `flex-1 py-3 text-white font-bold rounded-xl transition shadow-lg ${btnColor}`;
+            confirmAction = action;
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+
+        function closeCustomModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+            confirmAction = null;
+        }
+
+        function executeConfirm() {
+            if (confirmAction) confirmAction();
+            closeCustomModal();
+        }
 
         // 페이지 로드 시 학생용 링크 파라미터 확인
         window.onload = function() {
@@ -302,9 +339,9 @@
         }
 
         function forceEndVoting() {
-            if(confirm('투표를 모두 마치고 결과를 확인하시겠습니까?')) {
+            showCustomModal('🚨', '투표 종료', '투표를 모두 마치고 결과를 확인하시겠습니까?', '결과 보기', 'bg-red-500 hover:bg-red-600', () => {
                 renderResults();
-            }
+            });
         }
 
         // [3] 투표 진행 화면 렌더링
@@ -321,39 +358,38 @@
         // 투표 버튼 클릭 시 이벤트
         function handleVote(candidateId) {
             const candidate = candidates.find(c => c.id === candidateId);
-            if(confirm(`'${candidate.name}' 학생이 우리 반 최고의 에세이 발표자가 맞나요?`)) {
+            
+            // "정말 투표하시겠습니까?" 팝업 없이 1번 터치로 즉시 투표 완료 처리
+            candidate.votes += 1;
+            votedStudents.push({ id: currentStudentId, name: currentStudentName }); // 투표 완료 명단에 추가
+            
+            // 폭죽 이펙트 보여주기
+            const confetti = document.getElementById('confetti-overlay');
+            confetti.classList.remove('hidden');
+            
+            if (isStudentMode) {
+                // [학생 각자 스마트폰 모드] 단일 투표 내역을 즉시 구글 시트로 전송
+                submitSingleVoteToGas(currentStudentId, currentStudentName, candidate.name);
                 
-                candidate.votes += 1;
-                votedStudents.push({ id: currentStudentId, name: currentStudentName }); // 투표 완료 명단에 추가
-                
-                // 폭죽 이펙트 보여주기
-                const confetti = document.getElementById('confetti-overlay');
-                confetti.classList.remove('hidden');
-                
-                if (isStudentMode) {
-                    // [학생 각자 스마트폰 모드] 단일 투표 내역을 즉시 구글 시트로 전송
-                    submitSingleVoteToGas(currentStudentId, currentStudentName, candidate.name);
-                    
-                    // 2.5초 뒤 완전히 투표 종료 화면으로 변경 (재투표 방지)
-                    setTimeout(() => {
-                        confetti.classList.add('hidden');
-                        document.getElementById('voting-stage').innerHTML = `
-                            <div class="bg-white p-10 rounded-3xl shadow-xl text-center border-4 border-green-200 mt-20">
-                                <h2 class="text-5xl font-black text-green-600 mb-6">투표 완료!</h2>
-                                <p class="text-xl font-bold text-gray-700 mb-4">${candidate.name} 학생에게 소중한 한 표가 전송되었습니다.</p>
-                                <p class="text-md text-gray-500">선생님의 안내를 기다려주세요 😊</p>
-                            </div>
-                        `;
-                    }, 2500);
-                } else {
-                    // [선생님 PC 1대 공용 모드] 다음 사람을 위해 로그인 화면으로 되돌아가기
-                    setTimeout(() => {
-                        confetti.classList.add('hidden');
-                        document.getElementById('studentId').value = '';
-                        document.getElementById('studentName').value = '';
-                        switchStage('login-stage');
-                    }, 2500);
-                }
+                // 2.5초 뒤 완전히 투표 종료 화면으로 변경 (재투표 방지)
+                setTimeout(() => {
+                    confetti.classList.add('hidden');
+                    document.getElementById('voting-stage').innerHTML = `
+                        <div class="bg-white p-10 rounded-3xl shadow-xl text-center border-4 border-green-200 mt-20">
+                            <h2 class="text-5xl font-black text-green-600 mb-6">투표 완료!</h2>
+                            <p class="text-xl font-bold text-gray-700 mb-4">🎉 ${candidate.name} 학생에게<br>소중한 한 표가 전송되었습니다.</p>
+                            <p class="text-md text-gray-500">선생님의 안내를 기다려주세요 😊</p>
+                        </div>
+                    `;
+                }, 2500);
+            } else {
+                // [선생님 PC 1대 공용 모드] 다음 사람을 위해 로그인 화면으로 되돌아가기
+                setTimeout(() => {
+                    confetti.classList.add('hidden');
+                    document.getElementById('studentId').value = '';
+                    document.getElementById('studentName').value = '';
+                    switchStage('login-stage');
+                }, 2500);
             }
         }
 
